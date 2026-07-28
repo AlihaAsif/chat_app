@@ -27,7 +27,6 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Chat kholte hi seen mark karo
     _firestoreService.markChatAsSeen(widget.otherUserId);
   }
 
@@ -47,6 +46,58 @@ class _ChatScreenState extends State<ChatScreen> {
     await _firestoreService.sendMessage(
       otherUserId: widget.otherUserId,
       text: text,
+    );
+
+    // Naya message bhejte hi neeche scroll (reverse list mein 0 = bottom)
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // Long-press pe delete option (sirf apne messages)
+  void _showMessageOptions(MessageModel message, bool isMe) {
+    if (!isMe) return; // sirf apne message delete kar sakte ho
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.delete_outline,
+                  color: Color(0xFFB91C1C)),
+              title: const Text('Delete message',
+                  style: TextStyle(color: Color(0xFFB91C1C))),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _firestoreService.deleteMessage(
+                  otherUserId: widget.otherUserId,
+                  messageId: message.messageId,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.close, color: Color(0xFF6B7280)),
+              title: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF6B7280))),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -87,7 +138,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Messages list
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
               stream: _firestoreService.getMessages(widget.otherUserId),
@@ -120,16 +170,62 @@ class _ChatScreenState extends State<ChatScreen> {
                     final message = messages[index];
                     final isMe =
                         message.senderId == _firestoreService.currentUserId;
-                    return _buildMessageBubble(message, isMe);
+
+                    // Date separator logic:
+                    // reverse list hai, to "agla" (index+1) purana message hai.
+                    // Agar is message aur purane message ka din alag hai,
+                    // to is message ke upar date separator dikhao.
+                    bool showDateSeparator = false;
+                    if (index == messages.length - 1) {
+                      // Sabse purana message — hamesha separator
+                      showDateSeparator = true;
+                    } else {
+                      final olderMessage = messages[index + 1];
+                      if (!Helpers.isSameDay(
+                          message.timestamp, olderMessage.timestamp)) {
+                        showDateSeparator = true;
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        if (showDateSeparator)
+                          _buildDateSeparator(message.timestamp),
+                        GestureDetector(
+                          onLongPress: () =>
+                              _showMessageOptions(message, isMe),
+                          child: _buildMessageBubble(message, isMe),
+                        ),
+                      ],
+                    );
                   },
                 );
               },
             ),
           ),
-
-          // Input bar
           _buildInputBar(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateSeparator(DateTime time) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          Helpers.formatDateSeparator(time),
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF6B7280),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }

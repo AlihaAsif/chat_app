@@ -14,7 +14,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _firestoreService = FirestoreService();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
   static const Color _teal = Color(0xFF0F766E);
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,90 +37,140 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestoreService.getMyChats(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _teal),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Something went wrong.\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF6B7280)),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F3F5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.trim().toLowerCase());
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search chats',
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                  prefixIcon: const Icon(Icons.search,
+                      color: Color(0xFF9CA3AF), size: 22),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.close,
+                        color: Color(0xFF9CA3AF), size: 20),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding:
+                  const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
-            );
-          }
-
-          final chats = snapshot.data?.docs ?? [];
-
-          if (chats.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return ListView.separated(
-            itemCount: chats.length,
-            separatorBuilder: (_, __) => const Divider(
-              height: 1,
-              indent: 82,
-              color: Color(0xFFF1F1F1),
             ),
-            itemBuilder: (context, index) {
-              final chatData = chats[index].data() as Map<String, dynamic>;
-              final participants =
-              List<String>.from(chatData['participants'] ?? []);
+          ),
 
-              final otherUserId = participants.firstWhere(
-                    (id) => id != _firestoreService.currentUserId,
-                orElse: () => '',
-              );
-
-              final lastMessage = chatData['lastMessage'] ?? '';
-              final lastTime =
-              (chatData['lastMessageTime'] as Timestamp?)?.toDate();
-
-              // Unread check: last message doosre ne bheja + maine nahi dekha
-              final lastSenderId = chatData['lastSenderId'] ?? '';
-              final seenBy = List<String>.from(chatData['seenBy'] ?? []);
-              final isUnread =
-                  lastSenderId != _firestoreService.currentUserId &&
-                      !seenBy.contains(_firestoreService.currentUserId);
-
-              return FutureBuilder(
-                future: _firestoreService.getUserById(otherUserId),
-                builder: (context, userSnapshot) {
-                  final user = userSnapshot.data;
-                  final name = user?.name ?? 'User';
-
-                  return ChatTile(
-                    name: name,
-                    lastMessage: lastMessage,
-                    time: lastTime,
-                    isUnread: isUnread,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            otherUserId: otherUserId,
-                            otherUserName: name,
-                          ),
-                        ),
-                      );
-                    },
+          // Chat list
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestoreService.getMyChats(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _teal),
                   );
-                },
-              );
-            },
-          );
-        },
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Something went wrong.\n${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                    ),
+                  );
+                }
+
+                final chats = snapshot.data?.docs ?? [];
+
+                if (chats.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.separated(
+                  itemCount: chats.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    indent: 82,
+                    color: Color(0xFFF1F1F1),
+                  ),
+                  itemBuilder: (context, index) {
+                    final chatData =
+                    chats[index].data() as Map<String, dynamic>;
+                    final participants =
+                    List<String>.from(chatData['participants'] ?? []);
+
+                    final otherUserId = participants.firstWhere(
+                          (id) => id != _firestoreService.currentUserId,
+                      orElse: () => '',
+                    );
+
+                    final lastMessage = chatData['lastMessage'] ?? '';
+                    final lastTime =
+                    (chatData['lastMessageTime'] as Timestamp?)?.toDate();
+
+                    final lastSenderId = chatData['lastSenderId'] ?? '';
+                    final seenBy =
+                    List<String>.from(chatData['seenBy'] ?? []);
+                    final isUnread = lastSenderId !=
+                        _firestoreService.currentUserId &&
+                        !seenBy.contains(_firestoreService.currentUserId);
+
+                    return FutureBuilder(
+                      future: _firestoreService.getUserById(otherUserId),
+                      builder: (context, userSnapshot) {
+                        final user = userSnapshot.data;
+                        final name = user?.name ?? 'User';
+
+                        // Search filter — naam se match na kare to hide
+                        if (_searchQuery.isNotEmpty &&
+                            !name.toLowerCase().contains(_searchQuery)) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return ChatTile(
+                          name: name,
+                          lastMessage: lastMessage,
+                          time: lastTime,
+                          isUnread: isUnread,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  otherUserId: otherUserId,
+                                  otherUserName: name,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: _teal,

@@ -11,7 +11,6 @@ class FirestoreService {
 
   // ---------------- USERS ----------------
 
-  // Saare users fetch karo (apne aap ko chhod ke) — new chat ke liye
   Stream<List<UserModel>> getAllUsers() {
     return _firestore.collection('users').snapshots().map((snapshot) {
       return snapshot.docs
@@ -21,7 +20,6 @@ class FirestoreService {
     });
   }
 
-  // Ek user ka data lao (uid se)
   Future<UserModel?> getUserById(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
     if (doc.exists) {
@@ -32,7 +30,6 @@ class FirestoreService {
 
   // ---------------- CHAT ID ----------------
 
-  // Do users ke beech unique chatId banao (hamesha same order)
   String getChatId(String otherUserId) {
     final ids = [currentUserId, otherUserId];
     ids.sort();
@@ -41,7 +38,6 @@ class FirestoreService {
 
   // ---------------- MESSAGES ----------------
 
-  // Message bhejo
   Future<void> sendMessage({
     required String otherUserId,
     required String text,
@@ -56,25 +52,23 @@ class FirestoreService {
       timestamp: timestamp,
     );
 
-    // 1. Message ko subcollection mein add karo
     await _firestore
         .collection('chats')
         .doc(chatId)
         .collection('messages')
         .add(message.toMap());
 
-    // 2. Chat document update karo (last message + participants + sender + seen)
     await _firestore.collection('chats').doc(chatId).set({
       'chatId': chatId,
       'participants': [currentUserId, otherUserId],
       'lastMessage': text,
       'lastMessageTime': Timestamp.fromDate(timestamp),
-      'lastSenderId': currentUserId, // kisne bheja
-      'seenBy': [currentUserId], // sender ne to dekha hi hai
+      'lastSenderId': currentUserId,
+      'seenBy': [currentUserId],
     }, SetOptions(merge: true));
   }
 
-  // Ek chat ke messages real-time suno (naye niche)
+  // Messages real-time suno — ab document id bhi laate hain (delete ke liye)
   Stream<List<MessageModel>> getMessages(String otherUserId) {
     final chatId = getChatId(otherUserId);
     return _firestore
@@ -84,13 +78,28 @@ class FirestoreService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => MessageModel.fromMap(doc.data()))
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['messageId'] = doc.id; // document id ko messageId bana do
+        return MessageModel.fromMap(data);
+      }).toList();
     });
   }
 
-  // Chat ko "seen" mark karo (jab user chat kholta hai)
+  // Message delete karo
+  Future<void> deleteMessage({
+    required String otherUserId,
+    required String messageId,
+  }) async {
+    final chatId = getChatId(otherUserId);
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId)
+        .delete();
+  }
+
   Future<void> markChatAsSeen(String otherUserId) async {
     final chatId = getChatId(otherUserId);
     await _firestore.collection('chats').doc(chatId).set({
@@ -98,9 +107,8 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- CHAT LIST (Home screen) ----------------
+  // ---------------- CHAT LIST ----------------
 
-  // Meri saari chats real-time (recent upar)
   Stream<QuerySnapshot> getMyChats() {
     return _firestore
         .collection('chats')
