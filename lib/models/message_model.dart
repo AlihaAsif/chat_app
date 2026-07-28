@@ -7,6 +7,7 @@ class MessageModel {
   final String senderId;
   final String text;
   final MessageType type;
+  final String mediaUrl; // image ka URL (agar image message ho)
   final DateTime timestamp;
   final bool seen;
 
@@ -15,6 +16,7 @@ class MessageModel {
     required this.senderId,
     required this.text,
     this.type = MessageType.text,
+    this.mediaUrl = '',
     required this.timestamp,
     this.seen = false,
   });
@@ -24,11 +26,10 @@ class MessageModel {
       messageId: map['messageId'] ?? '',
       senderId: map['senderId'] ?? '',
       text: map['text'] ?? '',
-      type: (map['type'] == 'image')
-          ? MessageType.image
-          : MessageType.text,
-      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      type: (map['type'] == 'image') ? MessageType.image : MessageType.text,
+      mediaUrl: map['mediaUrl'] ?? '',
+      timestamp:
+      (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       seen: map['seen'] ?? false,
     );
   }
@@ -39,6 +40,7 @@ class MessageModel {
       'senderId': senderId,
       'text': text,
       'type': type == MessageType.image ? 'image' : 'text',
+      'mediaUrl': mediaUrl,
       'timestamp': Timestamp.fromDate(timestamp),
       'seen': seen,
     };

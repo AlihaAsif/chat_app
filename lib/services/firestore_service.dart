@@ -37,21 +37,18 @@ class FirestoreService {
 
   // ---------------- NICKNAMES ----------------
 
-  // Nickname set karo (sirf mere liye save)
   Future<void> setNickname(String otherUserId, String nickname) async {
     await _firestore.collection('users').doc(currentUserId).set({
       'nicknames': {otherUserId: nickname.trim()},
     }, SetOptions(merge: true));
   }
 
-  // Nickname hatao
   Future<void> removeNickname(String otherUserId) async {
     await _firestore.collection('users').doc(currentUserId).update({
       'nicknames.$otherUserId': FieldValue.delete(),
     });
   }
 
-  // Mera nicknames map lao
   Future<Map<String, String>> getMyNicknames() async {
     final doc = await _firestore.collection('users').doc(currentUserId).get();
     if (doc.exists) {
@@ -64,7 +61,6 @@ class FirestoreService {
     return {};
   }
 
-  // Display name — nickname ho to wo, warna asli naam
   Future<String> getDisplayName(String otherUserId, String realName) async {
     final nicknames = await getMyNicknames();
     if (nicknames.containsKey(otherUserId) &&
@@ -140,6 +136,39 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  // Image message bhejo (URL Supabase se aata hai)
+  Future<void> sendImageMessage({
+    required String otherUserId,
+    required String imageUrl,
+  }) async {
+    final chatId = getChatId(otherUserId);
+    final timestamp = DateTime.now();
+
+    final message = MessageModel(
+      messageId: '',
+      senderId: currentUserId,
+      text: '',
+      type: MessageType.image,
+      mediaUrl: imageUrl,
+      timestamp: timestamp,
+    );
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add(message.toMap());
+
+    await _firestore.collection('chats').doc(chatId).set({
+      'chatId': chatId,
+      'participants': [currentUserId, otherUserId],
+      'lastMessage': '📷 Photo',
+      'lastMessageTime': Timestamp.fromDate(timestamp),
+      'lastSenderId': currentUserId,
+      'seenBy': [currentUserId],
+    }, SetOptions(merge: true));
+  }
+
   Stream<List<MessageModel>> getMessages(String otherUserId) {
     final chatId = getChatId(otherUserId);
     return _firestore
@@ -184,7 +213,6 @@ class FirestoreService {
 
   // ---------------- CHAT DELETE / CLEAR ----------------
 
-  // Puri chat delete — saare messages + chat document
   Future<void> deleteChat(String otherUserId) async {
     final chatId = getChatId(otherUserId);
 
@@ -201,7 +229,6 @@ class FirestoreService {
     await _firestore.collection('chats').doc(chatId).delete();
   }
 
-  // Sirf messages clear karo (chat rahe)
   Future<void> clearChat(String otherUserId) async {
     final chatId = getChatId(otherUserId);
 
