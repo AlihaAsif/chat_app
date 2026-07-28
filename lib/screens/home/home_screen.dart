@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
 import '../contacts/contacts_screen.dart';
+import '../chat/chat_screen.dart';
 import 'widgets/chat_tile.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,7 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     lastMessage: lastMessage,
                     time: lastTime,
                     onTap: () {
-                      // Chat screen pe le jayenge (agla step)
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            otherUserId: otherUserId,
+                            otherUserName: name,
+                          ),
+                        ),
+                      );
                     },
                   );
                 },
