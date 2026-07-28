@@ -28,6 +28,40 @@ class FirestoreService {
     return null;
   }
 
+  // Ek user ko real-time suno (online/last seen ke liye)
+  Stream<UserModel?> getUserStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
+      if (doc.exists) return UserModel.fromMap(doc.data()!);
+      return null;
+    });
+  }
+
+  // ---------------- PRESENCE (online/offline) ----------------
+
+  Future<void> setOnline(bool online) async {
+    await _firestore.collection('users').doc(currentUserId).set({
+      'isOnline': online,
+      'lastSeen': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ---------------- NAME UPDATE ----------------
+
+  Future<void> updateName(String newName) async {
+    await _firestore.collection('users').doc(currentUserId).set({
+      'name': newName.trim(),
+    }, SetOptions(merge: true));
+  }
+
+  // ---------------- TYPING ----------------
+
+  Future<void> setTyping(String otherUserId, bool typing) async {
+    final chatId = getChatId(otherUserId);
+    await _firestore.collection('chats').doc(chatId).set({
+      'typing_$currentUserId': typing,
+    }, SetOptions(merge: true));
+  }
+
   // ---------------- CHAT ID ----------------
 
   String getChatId(String otherUserId) {
@@ -58,14 +92,13 @@ class FirestoreService {
         .collection('messages')
         .add(message.toMap());
 
-    // Naya message bheja — ab sirf sender ne dekha hai (seenBy reset)
     await _firestore.collection('chats').doc(chatId).set({
       'chatId': chatId,
       'participants': [currentUserId, otherUserId],
       'lastMessage': text,
       'lastMessageTime': Timestamp.fromDate(timestamp),
       'lastSenderId': currentUserId,
-      'seenBy': [currentUserId], // reset — receiver ne abhi nahi dekha
+      'seenBy': [currentUserId],
     }, SetOptions(merge: true));
   }
 
@@ -106,7 +139,6 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // Chat document real-time suno (seenBy check karne ke liye — ticks)
   Stream<DocumentSnapshot> getChatDoc(String otherUserId) {
     final chatId = getChatId(otherUserId);
     return _firestore.collection('chats').doc(chatId).snapshots();

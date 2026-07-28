@@ -50,4 +50,23 @@ class Helpers {
   static bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
+
+  // "last seen" ke liye — "online", "last seen today at 2:30 PM", etc.
+  static String formatLastSeen(bool isOnline, DateTime? lastSeen) {
+    if (isOnline) return 'online';
+    if (lastSeen == null) return 'offline';
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final seenDate = DateTime(lastSeen.year, lastSeen.month, lastSeen.day);
+    final timeStr = DateFormat('h:mm a').format(lastSeen);
+
+    if (seenDate == today) {
+      return 'last seen today at $timeStr';
+    } else if (seenDate == today.subtract(const Duration(days: 1))) {
+      return 'last seen yesterday at $timeStr';
+    } else {
+      return 'last seen ${DateFormat('dd/MM/yy').format(lastSeen)}';
+    }
+  }
 }

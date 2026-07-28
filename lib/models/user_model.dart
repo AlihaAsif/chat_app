@@ -4,6 +4,7 @@ class UserModel {
   final String email;
   final String photoUrl;
   final DateTime? lastSeen;
+  final bool isOnline;
 
   UserModel({
     required this.uid,
@@ -11,6 +12,7 @@ class UserModel {
     required this.email,
     this.photoUrl = '',
     this.lastSeen,
+    this.isOnline = false,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -19,9 +21,8 @@ class UserModel {
       name: map['name'] ?? '',
       email: map['email'] ?? '',
       photoUrl: map['photoUrl'] ?? '',
-      lastSeen: map['lastSeen'] != null
-          ? (map['lastSeen']).toDate()
-          : null,
+      lastSeen: map['lastSeen'] != null ? (map['lastSeen']).toDate() : null,
+      isOnline: map['isOnline'] ?? false,
     );
   }
 
@@ -32,6 +33,7 @@ class UserModel {
       'email': email,
       'photoUrl': photoUrl,
       'lastSeen': lastSeen,
+      'isOnline': isOnline,
     };
   }
 }

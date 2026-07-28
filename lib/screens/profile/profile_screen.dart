@@ -5,15 +5,79 @@ import '../../models/user_model.dart';
 import '../../core/utils/helpers.dart';
 import '../auth_wrapper.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _firestoreService = FirestoreService();
   static const Color _teal = Color(0xFF0F766E);
+
+  void _editName(String currentName) {
+    final controller = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        title: const Text('Edit name'),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.words,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Enter your name',
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: _teal, width: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF6B7280))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _teal,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Name must be at least 3 characters'),
+                    backgroundColor: Color(0xFFB91C1C),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              await _firestoreService.updateName(newName);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) setState(() {}); // refresh
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = FirestoreService();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -26,7 +90,7 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
       body: FutureBuilder<UserModel?>(
-        future: firestoreService.getUserById(firestoreService.currentUserId),
+        future: _firestoreService.getUserById(_firestoreService.currentUserId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: _teal));
@@ -40,8 +104,6 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 32),
-
-                // Big avatar with initials
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: _teal.withValues(alpha: 0.12),
@@ -55,8 +117,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Name
                 Text(
                   name,
                   style: const TextStyle(
@@ -66,8 +126,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-
-                // Email
                 Text(
                   email,
                   style: const TextStyle(
@@ -76,18 +134,34 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-
                 const Divider(height: 1, color: Color(0xFFF1F1F1)),
 
-                // Info rows
-                _buildInfoTile(Icons.person_outline, 'Name', name),
-                const Divider(height: 1, indent: 56, color: Color(0xFFF1F1F1)),
+                // Name row — edit karne ke liye tap
+                ListTile(
+                  leading: const Icon(Icons.person_outline,
+                      color: _teal, size: 22),
+                  title: const Text('Name',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF9CA3AF))),
+                  subtitle: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF111827),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.edit_outlined,
+                      color: Color(0xFF9CA3AF), size: 20),
+                  onTap: () => _editName(name),
+                ),
+                const Divider(
+                    height: 1, indent: 56, color: Color(0xFFF1F1F1)),
+
                 _buildInfoTile(Icons.email_outlined, 'Email', email),
                 const Divider(height: 1, color: Color(0xFFF1F1F1)),
 
                 const SizedBox(height: 32),
-
-                // Logout button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: SizedBox(
@@ -161,10 +235,10 @@ class ProfileScreen extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(ctx); // dialog band karo
+              Navigator.pop(ctx);
+              await _firestoreService.setOnline(false);
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
-                // Saara stack clear karke AuthWrapper pe jao — wo login dikhayega
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const AuthWrapper()),
                       (route) => false,

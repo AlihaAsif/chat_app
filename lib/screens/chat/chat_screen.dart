@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
@@ -23,19 +24,38 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
 
+  Timer? _typingTimer;
+  bool _isTyping = false;
+
   static const Color _teal = Color(0xFF0F766E);
 
   @override
   void initState() {
     super.initState();
     _firestoreService.markChatAsSeen(widget.otherUserId);
+    _messageController.addListener(_onTypingChanged);
   }
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
+    _firestoreService.setTyping(widget.otherUserId, false);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onTypingChanged() {
+    if (_messageController.text.isNotEmpty && !_isTyping) {
+      _isTyping = true;
+      _firestoreService.setTyping(widget.otherUserId, true);
+    }
+
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      _isTyping = false;
+      _firestoreService.setTyping(widget.otherUserId, false);
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -43,6 +63,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageController.clear();
+    _isTyping = false;
+    _firestoreService.setTyping(widget.otherUserId, false);
 
     await _firestoreService.sendMessage(
       otherUserId: widget.otherUserId,
@@ -124,12 +146,19 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                widget.otherUserName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.otherUserName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                  _buildStatusLine(),
+                ],
               ),
             ),
           ],
@@ -137,86 +166,135 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Messages — ye alag stream (sirf messages + seen)
           Expanded(
-            // Chat doc suno — seenBy check karne ke liye (ticks)
-            child: StreamBuilder<DocumentSnapshot>(
-              stream: _firestoreService.getChatDoc(widget.otherUserId),
-              builder: (context, chatSnapshot) {
-                // Doosre ne last message dekha ya nahi
-                bool otherHasSeen = false;
-                if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
-                  final chatData =
-                  chatSnapshot.data!.data() as Map<String, dynamic>?;
-                  final seenBy =
-                  List<String>.from(chatData?['seenBy'] ?? []);
-                  otherHasSeen = seenBy.contains(widget.otherUserId);
-                }
-
-                return StreamBuilder<List<MessageModel>>(
-                  stream: _firestoreService.getMessages(widget.otherUserId),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: _teal),
-                      );
-                    }
-
-                    final messages = snapshot.data ?? [];
-
-                    if (messages.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'No messages yet.\nSay hi!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Color(0xFF9CA3AF)),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        final isMe = message.senderId ==
-                            _firestoreService.currentUserId;
-
-                        bool showDateSeparator = false;
-                        if (index == messages.length - 1) {
-                          showDateSeparator = true;
-                        } else {
-                          final olderMessage = messages[index + 1];
-                          if (!Helpers.isSameDay(message.timestamp,
-                              olderMessage.timestamp)) {
-                            showDateSeparator = true;
-                          }
-                        }
-
-                        return Column(
-                          children: [
-                            if (showDateSeparator)
-                              _buildDateSeparator(message.timestamp),
-                            GestureDetector(
-                              onLongPress: () =>
-                                  _showMessageOptions(message, isMe),
-                              child: _buildMessageBubble(
-                                  message, isMe, otherHasSeen),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+            child: _buildMessagesList(),
           ),
           _buildInputBar(),
         ],
+      ),
+    );
+  }
+
+  // Status line — presence (online/last seen) alag stream, typing alag
+  Widget _buildStatusLine() {
+    return StreamBuilder(
+      // User doc suno — online/last seen ke liye (typing nahi yahan)
+      stream: _firestoreService.getUserStream(widget.otherUserId),
+      builder: (context, userSnapshot) {
+        return StreamBuilder<DocumentSnapshot>(
+          // Chat doc suno — sirf typing ke liye
+          stream: _firestoreService.getChatDoc(widget.otherUserId),
+          builder: (context, chatSnapshot) {
+            bool typing = false;
+            if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
+              final data =
+              chatSnapshot.data!.data() as Map<String, dynamic>?;
+              typing = data?['typing_${widget.otherUserId}'] ?? false;
+            }
+
+            final user = userSnapshot.data;
+            String text;
+            if (typing) {
+              text = 'typing...';
+            } else if (user?.isOnline ?? false) {
+              text = 'online';
+            } else {
+              text = Helpers.formatLastSeen(false, user?.lastSeen);
+            }
+
+            return Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.85),
+                fontStyle: typing ? FontStyle.italic : FontStyle.normal,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Messages list — seen status ke saath (blink na ho isliye alag)
+  Widget _buildMessagesList() {
+    return StreamBuilder<List<MessageModel>>(
+      stream: _firestoreService.getMessages(widget.otherUserId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: _teal),
+          );
+        }
+
+        final messages = snapshot.data ?? [];
+
+        if (messages.isEmpty) {
+          return _buildEmptyChat();
+        }
+
+        // Seen check ke liye chat doc — StreamBuilder yahan andar,
+        // sirf tick color ko affect karega, list ko rebuild kare bhi to
+        // messages same rehte (data cached), isliye blink nahi hoga.
+        return StreamBuilder<DocumentSnapshot>(
+          stream: _firestoreService.getChatDoc(widget.otherUserId),
+          builder: (context, chatSnapshot) {
+            bool otherHasSeen = false;
+            if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
+              final chatData =
+              chatSnapshot.data!.data() as Map<String, dynamic>?;
+              final seenBy = List<String>.from(chatData?['seenBy'] ?? []);
+              otherHasSeen = seenBy.contains(widget.otherUserId);
+            }
+
+            return ListView.builder(
+              controller: _scrollController,
+              reverse: true,
+              padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                final isMe =
+                    message.senderId == _firestoreService.currentUserId;
+
+                bool showDateSeparator = false;
+                if (index == messages.length - 1) {
+                  showDateSeparator = true;
+                } else {
+                  final olderMessage = messages[index + 1];
+                  if (!Helpers.isSameDay(
+                      message.timestamp, olderMessage.timestamp)) {
+                    showDateSeparator = true;
+                  }
+                }
+
+                return Column(
+                  children: [
+                    if (showDateSeparator)
+                      _buildDateSeparator(message.timestamp),
+                    GestureDetector(
+                      onLongPress: () => _showMessageOptions(message, isMe),
+                      child: _buildMessageBubble(message, isMe, otherHasSeen),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyChat() {
+    return const Center(
+      child: Text(
+        'No messages yet.\nSay hi!',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Color(0xFF9CA3AF)),
       ),
     );
   }
@@ -291,11 +369,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         : const Color(0xFF9CA3AF),
                   ),
                 ),
-                // Ticks — sirf mere messages pe
                 if (isMe) ...[
                   const SizedBox(width: 4),
                   Icon(
-                    // Doosre ne dekha? double tick : single tick (sab messages pe)
                     otherHasSeen ? Icons.done_all : Icons.done,
                     size: 14,
                     color: otherHasSeen
