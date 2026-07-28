@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
 import '../../models/message_model.dart';
 import '../../core/utils/helpers.dart';
@@ -48,7 +49,6 @@ class _ChatScreenState extends State<ChatScreen> {
       text: text,
     );
 
-    // Naya message bhejte hi neeche scroll (reverse list mein 0 = bottom)
     _scrollToBottom();
   }
 
@@ -62,9 +62,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Long-press pe delete option (sirf apne messages)
   void _showMessageOptions(MessageModel message, bool isMe) {
-    if (!isMe) return; // sirf apne message delete kar sakte ho
+    if (!isMe) return;
 
     showModalBottomSheet(
       context: context,
@@ -139,64 +138,77 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<List<MessageModel>>(
-              stream: _firestoreService.getMessages(widget.otherUserId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _teal),
-                  );
+            // Chat doc suno — seenBy check karne ke liye (ticks)
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: _firestoreService.getChatDoc(widget.otherUserId),
+              builder: (context, chatSnapshot) {
+                // Doosre ne last message dekha ya nahi
+                bool otherHasSeen = false;
+                if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
+                  final chatData =
+                  chatSnapshot.data!.data() as Map<String, dynamic>?;
+                  final seenBy =
+                  List<String>.from(chatData?['seenBy'] ?? []);
+                  otherHasSeen = seenBy.contains(widget.otherUserId);
                 }
 
-                final messages = snapshot.data ?? [];
-
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No messages yet.\nSay hi!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF9CA3AF)),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe =
-                        message.senderId == _firestoreService.currentUserId;
-
-                    // Date separator logic:
-                    // reverse list hai, to "agla" (index+1) purana message hai.
-                    // Agar is message aur purane message ka din alag hai,
-                    // to is message ke upar date separator dikhao.
-                    bool showDateSeparator = false;
-                    if (index == messages.length - 1) {
-                      // Sabse purana message — hamesha separator
-                      showDateSeparator = true;
-                    } else {
-                      final olderMessage = messages[index + 1];
-                      if (!Helpers.isSameDay(
-                          message.timestamp, olderMessage.timestamp)) {
-                        showDateSeparator = true;
-                      }
+                return StreamBuilder<List<MessageModel>>(
+                  stream: _firestoreService.getMessages(widget.otherUserId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: _teal),
+                      );
                     }
 
-                    return Column(
-                      children: [
-                        if (showDateSeparator)
-                          _buildDateSeparator(message.timestamp),
-                        GestureDetector(
-                          onLongPress: () =>
-                              _showMessageOptions(message, isMe),
-                          child: _buildMessageBubble(message, isMe),
+                    final messages = snapshot.data ?? [];
+
+                    if (messages.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No messages yet.\nSay hi!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF9CA3AF)),
                         ),
-                      ],
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        final isMe = message.senderId ==
+                            _firestoreService.currentUserId;
+
+                        bool showDateSeparator = false;
+                        if (index == messages.length - 1) {
+                          showDateSeparator = true;
+                        } else {
+                          final olderMessage = messages[index + 1];
+                          if (!Helpers.isSameDay(message.timestamp,
+                              olderMessage.timestamp)) {
+                            showDateSeparator = true;
+                          }
+                        }
+
+                        return Column(
+                          children: [
+                            if (showDateSeparator)
+                              _buildDateSeparator(message.timestamp),
+                            GestureDetector(
+                              onLongPress: () =>
+                                  _showMessageOptions(message, isMe),
+                              child: _buildMessageBubble(
+                                  message, isMe, otherHasSeen),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 );
@@ -230,7 +242,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(MessageModel message, bool isMe) {
+  Widget _buildMessageBubble(
+      MessageModel message, bool isMe, bool otherHasSeen) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -266,14 +279,31 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(height: 3),
-            Text(
-              Helpers.formatMessageTime(message.timestamp),
-              style: TextStyle(
-                fontSize: 10,
-                color: isMe
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : const Color(0xFF9CA3AF),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  Helpers.formatMessageTime(message.timestamp),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isMe
+                        ? Colors.white.withValues(alpha: 0.7)
+                        : const Color(0xFF9CA3AF),
+                  ),
+                ),
+                // Ticks — sirf mere messages pe
+                if (isMe) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    // Doosre ne dekha? double tick : single tick (sab messages pe)
+                    otherHasSeen ? Icons.done_all : Icons.done,
+                    size: 14,
+                    color: otherHasSeen
+                        ? Colors.lightBlueAccent
+                        : Colors.white.withValues(alpha: 0.7),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
