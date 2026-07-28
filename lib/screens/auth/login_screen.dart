@@ -4,6 +4,7 @@ import '../../core/utils/validators.dart';
 import '../../widgets/app_logo_header.dart';
 import '../auth_wrapper.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -160,7 +161,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // Navigate to forgot password later
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      );
                     },
                     style: TextButton.styleFrom(
                       foregroundColor: _teal,
