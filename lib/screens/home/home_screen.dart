@@ -5,6 +5,7 @@ import '../../services/firestore_service.dart';
 import '../contacts/contacts_screen.dart';
 import '../chat/chat_screen.dart';
 import 'widgets/chat_tile.dart';
+import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,8 +32,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
           ),
         ],
       ),
