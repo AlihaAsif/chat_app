@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
 import '../contacts/contacts_screen.dart';
 import '../chat/chat_screen.dart';
 import 'widgets/chat_tile.dart';
-import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,29 +28,16 @@ class _HomeScreenState extends State<HomeScreen> {
           'Chatt App',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestoreService.getMyChats(),
         builder: (context, snapshot) {
-          // Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: _teal),
             );
           }
 
-          // Error
           if (snapshot.hasError) {
             return Center(
               child: Padding(
@@ -68,12 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final chats = snapshot.data?.docs ?? [];
 
-          // Empty state — koi chat nahi
           if (chats.isEmpty) {
             return _buildEmptyState();
           }
 
-          // Chat list
           return ListView.separated(
             itemCount: chats.length,
             separatorBuilder: (_, __) => const Divider(
@@ -86,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
               final participants =
               List<String>.from(chatData['participants'] ?? []);
 
-              // Doosre user ka id nikalo
               final otherUserId = participants.firstWhere(
                     (id) => id != _firestoreService.currentUserId,
                 orElse: () => '',
@@ -96,7 +78,13 @@ class _HomeScreenState extends State<HomeScreen> {
               final lastTime =
               (chatData['lastMessageTime'] as Timestamp?)?.toDate();
 
-              // Doosre user ka naam laane ke liye FutureBuilder
+              // Unread check: last message doosre ne bheja + maine nahi dekha
+              final lastSenderId = chatData['lastSenderId'] ?? '';
+              final seenBy = List<String>.from(chatData['seenBy'] ?? []);
+              final isUnread =
+                  lastSenderId != _firestoreService.currentUserId &&
+                      !seenBy.contains(_firestoreService.currentUserId);
+
               return FutureBuilder(
                 future: _firestoreService.getUserById(otherUserId),
                 builder: (context, userSnapshot) {
@@ -107,6 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     name: name,
                     lastMessage: lastMessage,
                     time: lastTime,
+                    isUnread: isUnread,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -125,8 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-
-      // New chat button
       floatingActionButton: FloatingActionButton(
         backgroundColor: _teal,
         foregroundColor: Colors.white,

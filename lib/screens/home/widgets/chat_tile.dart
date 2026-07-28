@@ -5,6 +5,7 @@ class ChatTile extends StatelessWidget {
   final String name;
   final String lastMessage;
   final DateTime? time;
+  final bool isUnread;
   final VoidCallback onTap;
 
   const ChatTile({
@@ -13,6 +14,7 @@ class ChatTile extends StatelessWidget {
     required this.lastMessage,
     required this.time,
     required this.onTap,
+    this.isUnread = false,
   });
 
   static const Color _teal = Color(0xFF0F766E);
@@ -60,9 +62,14 @@ class ChatTile extends StatelessWidget {
                     lastMessage.isEmpty ? 'Tap to chat' : lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF6B7280),
+                      // Unread ho to thoda dark aur bold
+                      color: isUnread
+                          ? const Color(0xFF111827)
+                          : const Color(0xFF6B7280),
+                      fontWeight:
+                      isUnread ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -70,13 +77,37 @@ class ChatTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Time
-            Text(
-              Helpers.formatChatTime(time),
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF9CA3AF),
-              ),
+            // Time + unread badge
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  Helpers.formatChatTime(time),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isUnread ? _teal : const Color(0xFF9CA3AF),
+                    fontWeight:
+                    isUnread ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Unread badge (teal dot)
+                if (isUnread)
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: _teal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.circle,
+                          size: 8, color: Colors.white),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 20),
+              ],
             ),
           ],
         ),

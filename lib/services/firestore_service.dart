@@ -16,7 +16,7 @@ class FirestoreService {
     return _firestore.collection('users').snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) => UserModel.fromMap(doc.data()))
-          .where((user) => user.uid != currentUserId) // khud ko hatao
+          .where((user) => user.uid != currentUserId)
           .toList();
     });
   }
@@ -32,10 +32,10 @@ class FirestoreService {
 
   // ---------------- CHAT ID ----------------
 
-  // Do users ke beech unique chatId banao (hamesha same order mein)
+  // Do users ke beech unique chatId banao (hamesha same order)
   String getChatId(String otherUserId) {
     final ids = [currentUserId, otherUserId];
-    ids.sort(); // sort karne se dono taraf same id banti hai
+    ids.sort();
     return ids.join('_');
   }
 
@@ -50,7 +50,7 @@ class FirestoreService {
     final timestamp = DateTime.now();
 
     final message = MessageModel(
-      messageId: '', // Firestore khud id dega
+      messageId: '',
       senderId: currentUserId,
       text: text,
       timestamp: timestamp,
@@ -63,13 +63,15 @@ class FirestoreService {
         .collection('messages')
         .add(message.toMap());
 
-    // 2. Chat document update karo (last message + participants)
+    // 2. Chat document update karo (last message + participants + sender + seen)
     await _firestore.collection('chats').doc(chatId).set({
       'chatId': chatId,
       'participants': [currentUserId, otherUserId],
       'lastMessage': text,
       'lastMessageTime': Timestamp.fromDate(timestamp),
-    }, SetOptions(merge: true)); // merge = purana data na mite
+      'lastSenderId': currentUserId, // kisne bheja
+      'seenBy': [currentUserId], // sender ne to dekha hi hai
+    }, SetOptions(merge: true));
   }
 
   // Ek chat ke messages real-time suno (naye niche)
@@ -79,7 +81,7 @@ class FirestoreService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: true) // naye pehle (list reverse hogi)
+        .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -88,14 +90,22 @@ class FirestoreService {
     });
   }
 
+  // Chat ko "seen" mark karo (jab user chat kholta hai)
+  Future<void> markChatAsSeen(String otherUserId) async {
+    final chatId = getChatId(otherUserId);
+    await _firestore.collection('chats').doc(chatId).set({
+      'seenBy': FieldValue.arrayUnion([currentUserId]),
+    }, SetOptions(merge: true));
+  }
+
   // ---------------- CHAT LIST (Home screen) ----------------
 
-  // Meri saari chats real-time (recent upar) — home screen ke liye
+  // Meri saari chats real-time (recent upar)
   Stream<QuerySnapshot> getMyChats() {
     return _firestore
         .collection('chats')
         .where('participants', arrayContains: currentUserId)
-        .orderBy('lastMessageTime', descending: true) // recent chat upar
+        .orderBy('lastMessageTime', descending: true)
         .snapshots();
   }
 }

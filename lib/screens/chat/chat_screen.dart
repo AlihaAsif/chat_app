@@ -25,6 +25,13 @@ class _ChatScreenState extends State<ChatScreen> {
   static const Color _teal = Color(0xFF0F766E);
 
   @override
+  void initState() {
+    super.initState();
+    // Chat kholte hi seen mark karo
+    _firestoreService.markChatAsSeen(widget.otherUserId);
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
@@ -35,7 +42,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    _messageController.clear(); // pehle clear karo (fast feel)
+    _messageController.clear();
 
     await _firestoreService.sendMessage(
       otherUserId: widget.otherUserId,
@@ -105,7 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  reverse: true, // naye messages neeche (list ulti)
+                  reverse: true,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
                   itemCount: messages.length,
@@ -191,7 +198,6 @@ class _ChatScreenState extends State<ChatScreen> {
         top: false,
         child: Row(
           children: [
-            // Text input
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -214,8 +220,6 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-
-            // Send button
             GestureDetector(
               onTap: _sendMessage,
               child: Container(
