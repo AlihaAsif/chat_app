@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
 import '../../models/message_model.dart';
 import '../../core/utils/helpers.dart';
+import '../profile/user_profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -26,14 +27,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Timer? _typingTimer;
   bool _isTyping = false;
+  String _displayName = '';
 
   static const Color _teal = Color(0xFF0F766E);
 
   @override
   void initState() {
     super.initState();
+    _displayName = widget.otherUserName;
+    _loadDisplayName();
     _firestoreService.markChatAsSeen(widget.otherUserId);
     _messageController.addListener(_onTypingChanged);
+  }
+
+  // Nickname ho to wo dikhao, warna asli naam
+  Future<void> _loadDisplayName() async {
+    final name = await _firestoreService.getDisplayName(
+        widget.otherUserId, widget.otherUserName);
+    if (mounted) setState(() => _displayName = name);
   }
 
   @override
@@ -84,6 +95,17 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _openUserProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(userId: widget.otherUserId),
+      ),
+    );
+    // Wapas aane pe nickname refresh (agar badla ho)
+    _loadDisplayName();
+  }
+
   void _showMessageOptions(MessageModel message, bool isMe) {
     if (!isMe) return;
 
@@ -130,60 +152,57 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: _teal,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white.withValues(alpha: 0.25),
-              child: Text(
-                Helpers.getInitials(widget.otherUserName),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+        title: InkWell(
+          onTap: _openUserProfile,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white.withValues(alpha: 0.25),
+                child: Text(
+                  Helpers.getInitials(_displayName),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.otherUserName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  _buildStatusLine(),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w600),
+                    ),
+                    _buildStatusLine(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: Column(
         children: [
-          // Messages — ye alag stream (sirf messages + seen)
-          Expanded(
-            child: _buildMessagesList(),
-          ),
+          Expanded(child: _buildMessagesList()),
           _buildInputBar(),
         ],
       ),
     );
   }
 
-  // Status line — presence (online/last seen) alag stream, typing alag
   Widget _buildStatusLine() {
     return StreamBuilder(
-      // User doc suno — online/last seen ke liye (typing nahi yahan)
       stream: _firestoreService.getUserStream(widget.otherUserId),
       builder: (context, userSnapshot) {
         return StreamBuilder<DocumentSnapshot>(
-          // Chat doc suno — sirf typing ke liye
           stream: _firestoreService.getChatDoc(widget.otherUserId),
           builder: (context, chatSnapshot) {
             bool typing = false;
@@ -217,7 +236,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Messages list — seen status ke saath (blink na ho isliye alag)
   Widget _buildMessagesList() {
     return StreamBuilder<List<MessageModel>>(
       stream: _firestoreService.getMessages(widget.otherUserId),
@@ -235,9 +253,6 @@ class _ChatScreenState extends State<ChatScreen> {
           return _buildEmptyChat();
         }
 
-        // Seen check ke liye chat doc — StreamBuilder yahan andar,
-        // sirf tick color ko affect karega, list ko rebuild kare bhi to
-        // messages same rehte (data cached), isliye blink nahi hoga.
         return StreamBuilder<DocumentSnapshot>(
           stream: _firestoreService.getChatDoc(widget.otherUserId),
           builder: (context, chatSnapshot) {

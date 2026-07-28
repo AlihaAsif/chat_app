@@ -16,12 +16,64 @@ class _HomeScreenState extends State<HomeScreen> {
   final _firestoreService = FirestoreService();
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  Map<String, String> _nicknames = {};
   static const Color _teal = Color(0xFF0F766E);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNicknames();
+  }
+
+  Future<void> _loadNicknames() async {
+    final nicks = await _firestoreService.getMyNicknames();
+    if (mounted) setState(() => _nicknames = nicks);
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _confirmDeleteChat(String otherUserId, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        title: const Text('Delete chat'),
+        content: Text('Delete your chat with $name? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF6B7280))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _firestoreService.deleteChat(otherUserId);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Chat deleted'),
+                    backgroundColor: _teal,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -68,14 +120,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                       : null,
                   border: InputBorder.none,
-                  contentPadding:
-                  const EdgeInsets.symmetric(vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
           ),
 
-          // Chat list
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestoreService.getMyChats(),
@@ -138,30 +188,49 @@ class _HomeScreenState extends State<HomeScreen> {
                       future: _firestoreService.getUserById(otherUserId),
                       builder: (context, userSnapshot) {
                         final user = userSnapshot.data;
-                        final name = user?.name ?? 'User';
+                        final realName = user?.name ?? 'User';
+                        // Nickname ho to wo dikhao
+                        final name = _nicknames[otherUserId]?.isNotEmpty == true
+                            ? _nicknames[otherUserId]!
+                            : realName;
 
-                        // Search filter — naam se match na kare to hide
                         if (_searchQuery.isNotEmpty &&
                             !name.toLowerCase().contains(_searchQuery)) {
                           return const SizedBox.shrink();
                         }
 
-                        return ChatTile(
-                          name: name,
-                          lastMessage: lastMessage,
-                          time: lastTime,
-                          isUnread: isUnread,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatScreen(
-                                  otherUserId: otherUserId,
-                                  otherUserName: name,
-                                ),
-                              ),
-                            );
+                        return Dismissible(
+                          key: Key(otherUserId),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            color: const Color(0xFFB91C1C),
+                            child: const Icon(Icons.delete,
+                                color: Colors.white),
+                          ),
+                          confirmDismiss: (_) async {
+                            _confirmDeleteChat(otherUserId, name);
+                            return false; // dialog handle karega
                           },
+                          child: ChatTile(
+                            name: name,
+                            lastMessage: lastMessage,
+                            time: lastTime,
+                            isUnread: isUnread,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    otherUserId: otherUserId,
+                                    otherUserName: realName,
+                                  ),
+                                ),
+                              );
+                              _loadNicknames(); // wapas aane pe refresh
+                            },
+                          ),
                         );
                       },
                     );

@@ -28,7 +28,6 @@ class FirestoreService {
     return null;
   }
 
-  // Ek user ko real-time suno (online/last seen ke liye)
   Stream<UserModel?> getUserStream(String uid) {
     return _firestore.collection('users').doc(uid).snapshots().map((doc) {
       if (doc.exists) return UserModel.fromMap(doc.data()!);
@@ -36,7 +35,46 @@ class FirestoreService {
     });
   }
 
-  // ---------------- PRESENCE (online/offline) ----------------
+  // ---------------- NICKNAMES ----------------
+
+  // Nickname set karo (sirf mere liye save)
+  Future<void> setNickname(String otherUserId, String nickname) async {
+    await _firestore.collection('users').doc(currentUserId).set({
+      'nicknames': {otherUserId: nickname.trim()},
+    }, SetOptions(merge: true));
+  }
+
+  // Nickname hatao
+  Future<void> removeNickname(String otherUserId) async {
+    await _firestore.collection('users').doc(currentUserId).update({
+      'nicknames.$otherUserId': FieldValue.delete(),
+    });
+  }
+
+  // Mera nicknames map lao
+  Future<Map<String, String>> getMyNicknames() async {
+    final doc = await _firestore.collection('users').doc(currentUserId).get();
+    if (doc.exists) {
+      final data = doc.data();
+      final nicknames = data?['nicknames'] as Map<String, dynamic>?;
+      if (nicknames != null) {
+        return nicknames.map((key, value) => MapEntry(key, value.toString()));
+      }
+    }
+    return {};
+  }
+
+  // Display name — nickname ho to wo, warna asli naam
+  Future<String> getDisplayName(String otherUserId, String realName) async {
+    final nicknames = await getMyNicknames();
+    if (nicknames.containsKey(otherUserId) &&
+        nicknames[otherUserId]!.isNotEmpty) {
+      return nicknames[otherUserId]!;
+    }
+    return realName;
+  }
+
+  // ---------------- PRESENCE ----------------
 
   Future<void> setOnline(bool online) async {
     await _firestore.collection('users').doc(currentUserId).set({
@@ -45,7 +83,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- NAME UPDATE ----------------
+  // ---------------- NAME UPDATE (apna) ----------------
 
   Future<void> updateName(String newName) async {
     await _firestore.collection('users').doc(currentUserId).set({
@@ -142,6 +180,44 @@ class FirestoreService {
   Stream<DocumentSnapshot> getChatDoc(String otherUserId) {
     final chatId = getChatId(otherUserId);
     return _firestore.collection('chats').doc(chatId).snapshots();
+  }
+
+  // ---------------- CHAT DELETE / CLEAR ----------------
+
+  // Puri chat delete — saare messages + chat document
+  Future<void> deleteChat(String otherUserId) async {
+    final chatId = getChatId(otherUserId);
+
+    final messagesSnapshot = await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .get();
+
+    for (final doc in messagesSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    await _firestore.collection('chats').doc(chatId).delete();
+  }
+
+  // Sirf messages clear karo (chat rahe)
+  Future<void> clearChat(String otherUserId) async {
+    final chatId = getChatId(otherUserId);
+
+    final messagesSnapshot = await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .get();
+
+    for (final doc in messagesSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    await _firestore.collection('chats').doc(chatId).set({
+      'lastMessage': '',
+    }, SetOptions(merge: true));
   }
 
   // ---------------- CHAT LIST ----------------
