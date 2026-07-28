@@ -82,12 +82,14 @@ class _SignupScreenState extends State<SignupScreen> {
     bool obscure = false,
     Widget? suffix,
     TextInputType? keyboardType,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
       validator: validator,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
@@ -141,6 +143,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     label: 'Name',
                     icon: Icons.person_outline,
                     validator: Validators.validateName,
+                    textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 16),
 
