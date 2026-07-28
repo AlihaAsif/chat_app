@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
+import '../contacts/contacts_screen.dart';
 import 'widgets/chat_tile.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -115,7 +116,10 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _teal,
         foregroundColor: Colors.white,
         onPressed: () {
-          // Contacts screen pe le jayenge (agla step)
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ContactsScreen()),
+          );
         },
         child: const Icon(Icons.chat),
       ),
