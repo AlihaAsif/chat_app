@@ -15,6 +15,7 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   final _firestoreService = FirestoreService();
   static const Color _teal = Color(0xFF0F766E);
+  static const Color _tealDark = Color(0xFF0B5A54);
 
   UserModel? _user;
   String _nickname = '';
@@ -140,8 +141,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: _teal,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text(
@@ -152,134 +154,167 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _teal))
           : SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 32),
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: _teal.withValues(alpha: 0.12),
-              child: Text(
-                Helpers.getInitials(displayName),
-                style: const TextStyle(
-                  color: _teal,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 40,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              displayName,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _user?.email ?? '',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Divider(height: 1, color: Color(0xFFF1F1F1)),
-
-            // Nickname row — edit
-            ListTile(
-              leading: const Icon(Icons.badge_outlined,
-                  color: _teal, size: 22),
-              title: const Text('Nickname',
-                  style: TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF))),
-              subtitle: Text(
-                _nickname.isEmpty ? 'None set' : _nickname,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: _nickname.isEmpty
-                      ? const Color(0xFF9CA3AF)
-                      : const Color(0xFF111827),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              trailing: const Icon(Icons.edit_outlined,
-                  color: Color(0xFF9CA3AF), size: 20),
-              onTap: _editNickname,
-            ),
-            const Divider(
-                height: 1, indent: 56, color: Color(0xFFF1F1F1)),
-
-            // Real name row (read-only)
-            ListTile(
-              leading: const Icon(Icons.person_outline,
-                  color: _teal, size: 22),
-              title: const Text('Real name',
-                  style: TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF))),
-              subtitle: Text(
-                _user?.name ?? '',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF111827),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const Divider(
-                height: 1, indent: 56, color: Color(0xFFF1F1F1)),
-
-            // Email row (read-only)
-            ListTile(
-              leading: const Icon(Icons.email_outlined,
-                  color: _teal, size: 22),
-              title: const Text('Email',
-                  style: TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF))),
-              subtitle: Text(
-                _user?.email ?? '',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF111827),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const Divider(height: 1, color: Color(0xFFF1F1F1)),
-
-            const SizedBox(height: 24),
-
-            // Clear chat button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: _confirmClearChat,
-                  icon: const Icon(Icons.delete_sweep_outlined,
-                      color: Color(0xFFB91C1C), size: 20),
-                  label: const Text(
-                    'Clear chat',
-                    style: TextStyle(
-                      color: Color(0xFFB91C1C),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+              child: Column(
+                children: [
+                  // Curved Gradient Teal Header (matching AuthHeader style)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+                      bottom: 36,
+                    ),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_teal, _tealDark],
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(40),
+                        bottomRight: Radius.circular(40),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Avatar with white border and drop shadow
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            child: Text(
+                              Helpers.getInitials(displayName),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 40,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _user?.email ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFB91C1C)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+                  const SizedBox(height: 24),
+
+                  ListTile(
+                    leading: const Icon(Icons.badge_outlined,
+                        color: _teal, size: 22),
+                    title: const Text('Nickname',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF9CA3AF))),
+                    subtitle: Text(
+                      _nickname.isEmpty ? 'None set' : _nickname,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: _nickname.isEmpty
+                            ? const Color(0xFF9CA3AF)
+                            : const Color(0xFF111827),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: const Icon(Icons.edit_outlined,
+                        color: Color(0xFF9CA3AF), size: 20),
+                    onTap: _editNickname,
+                  ),
+                  const Divider(
+                      height: 1, indent: 56, color: Color(0xFFF1F1F1)),
+
+                  ListTile(
+                    leading: const Icon(Icons.person_outline,
+                        color: _teal, size: 22),
+                    title: const Text('Real name',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF9CA3AF))),
+                    subtitle: Text(
+                      _user?.name ?? '',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF111827),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
+                  const Divider(
+                      height: 1, indent: 56, color: Color(0xFFF1F1F1)),
+
+                  ListTile(
+                    leading: const Icon(Icons.email_outlined,
+                        color: _teal, size: 22),
+                    title: const Text('Email',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF9CA3AF))),
+                    subtitle: Text(
+                      _user?.email ?? '',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF111827),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF1F1F1)),
+
+                  const SizedBox(height: 24),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _confirmClearChat,
+                        icon: const Icon(Icons.delete_sweep_outlined,
+                            color: Color(0xFFB91C1C), size: 20),
+                        label: const Text(
+                          'Clear chat',
+                          style: TextStyle(
+                            color: Color(0xFFB91C1C),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFB91C1C)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

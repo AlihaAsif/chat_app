@@ -108,7 +108,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Gradient header with back + icon
+
           Container(
             height: 220,
             decoration: const BoxDecoration(
@@ -214,7 +214,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // I've verified — gradient button
+
                   Container(
                     height: 52,
                     decoration: BoxDecoration(

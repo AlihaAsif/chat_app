@@ -9,7 +9,7 @@ class MessageModel {
   final MessageType type;
   final String mediaUrl;
   final String fileName;
-  final int duration; // voice ki length (seconds)
+  final int duration;
   final DateTime timestamp;
   final bool seen;
 

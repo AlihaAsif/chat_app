@@ -9,7 +9,7 @@ class FirestoreService {
 
   String get currentUserId => _auth.currentUser!.uid;
 
-  // ---------------- USERS ----------------
+
 
   Stream<List<UserModel>> getAllUsers() {
     return _firestore.collection('users').snapshots().map((snapshot) {
@@ -35,7 +35,7 @@ class FirestoreService {
     });
   }
 
-  // ---------------- NICKNAMES ----------------
+
 
   Future<void> setNickname(String otherUserId, String nickname) async {
     await _firestore.collection('users').doc(currentUserId).set({
@@ -70,7 +70,7 @@ class FirestoreService {
     return realName;
   }
 
-  // ---------------- PRESENCE ----------------
+
 
   Future<void> setOnline(bool online) async {
     await _firestore.collection('users').doc(currentUserId).set({
@@ -79,7 +79,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- NAME UPDATE (apna) ----------------
+
 
   Future<void> updateName(String newName) async {
     await _firestore.collection('users').doc(currentUserId).set({
@@ -87,7 +87,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- TYPING ----------------
+
 
   Future<void> setTyping(String otherUserId, bool typing) async {
     final chatId = getChatId(otherUserId);
@@ -96,7 +96,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- CHAT ID ----------------
+
 
   String getChatId(String otherUserId) {
     final ids = [currentUserId, otherUserId];
@@ -104,7 +104,7 @@ class FirestoreService {
     return ids.join('_');
   }
 
-  // ---------------- MESSAGES ----------------
+
 
   Future<void> sendMessage({
     required String otherUserId,
@@ -136,7 +136,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // Image message
+
   Future<void> sendImageMessage({
     required String otherUserId,
     required String imageUrl,
@@ -169,7 +169,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // Document message
+
   Future<void> sendDocumentMessage({
     required String otherUserId,
     required String fileUrl,
@@ -204,7 +204,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // Voice message bhejo
+
   Future<void> sendVoiceMessage({
     required String otherUserId,
     required String voiceUrl,
@@ -281,7 +281,7 @@ class FirestoreService {
     return _firestore.collection('chats').doc(chatId).snapshots();
   }
 
-  // ---------------- CHAT DELETE / CLEAR ----------------
+
 
   Future<void> deleteChat(String otherUserId) async {
     final chatId = getChatId(otherUserId);
@@ -317,7 +317,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // ---------------- CHAT LIST ----------------
+
 
   Stream<QuerySnapshot> getMyChats() {
     return _firestore

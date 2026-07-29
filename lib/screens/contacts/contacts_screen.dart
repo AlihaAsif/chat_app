@@ -39,7 +39,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
+
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: Container(
@@ -75,7 +75,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ),
           ),
 
-          // Users list
+
           Expanded(
             child: StreamBuilder<List<UserModel>>(
               stream: _firestoreService.getAllUsers(),
@@ -92,7 +92,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
                 final allUsers = snapshot.data ?? [];
 
-                // Search filter — sirf naam se match
+
                 final users = _searchQuery.isEmpty
                     ? allUsers
                     : allUsers.where((u) {

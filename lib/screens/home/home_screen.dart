@@ -4,6 +4,7 @@ import '../../services/firestore_service.dart';
 import '../contacts/contacts_screen.dart';
 import '../chat/chat_screen.dart';
 import 'widgets/chat_tile.dart';
+import '../../models/user_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -111,13 +112,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Color(0xFF9CA3AF), size: 22),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                    icon: const Icon(Icons.close,
-                        color: Color(0xFF9CA3AF), size: 20),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                  )
+                          icon: const Icon(Icons.close,
+                              color: Color(0xFF9CA3AF), size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
                       : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -164,31 +165,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   itemBuilder: (context, index) {
                     final chatData =
-                    chats[index].data() as Map<String, dynamic>;
+                        chats[index].data() as Map<String, dynamic>;
                     final participants =
-                    List<String>.from(chatData['participants'] ?? []);
+                        List<String>.from(chatData['participants'] ?? []);
 
                     final otherUserId = participants.firstWhere(
-                          (id) => id != _firestoreService.currentUserId,
+                      (id) => id != _firestoreService.currentUserId,
                       orElse: () => '',
                     );
 
                     final lastMessage = chatData['lastMessage'] ?? '';
                     final lastTime =
-                    (chatData['lastMessageTime'] as Timestamp?)?.toDate();
+                        (chatData['lastMessageTime'] as Timestamp?)?.toDate();
 
                     final lastSenderId = chatData['lastSenderId'] ?? '';
-                    final seenBy =
-                    List<String>.from(chatData['seenBy'] ?? []);
+                    final seenBy = List<String>.from(chatData['seenBy'] ?? []);
                     final isUnread = lastSenderId !=
-                        _firestoreService.currentUserId &&
+                            _firestoreService.currentUserId &&
                         !seenBy.contains(_firestoreService.currentUserId);
 
-                    return FutureBuilder(
-                      future: _firestoreService.getUserById(otherUserId),
+                    return StreamBuilder<UserModel?>(
+                      stream: _firestoreService.getUserStream(otherUserId),
                       builder: (context, userSnapshot) {
                         final user = userSnapshot.data;
                         final realName = user?.name ?? 'User';
+                        final isOnline = user?.isOnline ?? false;
                         // Nickname ho to wo dikhao
                         final name = _nicknames[otherUserId]?.isNotEmpty == true
                             ? _nicknames[otherUserId]!
@@ -218,6 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             lastMessage: lastMessage,
                             time: lastTime,
                             isUnread: isUnread,
+                            isOnline: isOnline,
                             onTap: () async {
                               await Navigator.push(
                                 context,
@@ -257,34 +259,72 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _teal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(40),
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _teal.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 52,
+                    color: _teal.withValues(alpha: 0.4),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add_circle,
+                        size: 20,
+                        color: _teal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const Icon(Icons.chat_bubble_outline,
-                color: _teal, size: 36),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No chats yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827),
+            const SizedBox(height: 24),
+            const Text(
+              'No chats yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Tap the chat button to start a conversation',
-            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Text(
+              'Tap the chat button below to start a conversation with your contacts',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

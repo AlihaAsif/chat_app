@@ -13,6 +13,7 @@ import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../models/message_model.dart';
 import '../../core/utils/helpers.dart';
+import '../../widgets/chat_background.dart';
 import '../profile/user_profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -100,7 +101,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     _scrollToBottom();
-    setState(() {}); // mic/send button toggle refresh
+    setState(() {});
   }
 
   // ---------------- VOICE RECORDING ----------------
@@ -112,17 +113,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final path =
             '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-        await _audioRecorder.start(
-          const RecordConfig(),
-          path: path,
-        );
+        await _audioRecorder.start(const RecordConfig(), path: path);
 
         setState(() {
           _isRecording = true;
           _recordDuration = 0;
         });
 
-        // Duration counter
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) setState(() => _recordDuration++);
         });
@@ -142,7 +139,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Recording rok ke bhejo
   Future<void> _stopAndSendRecording() async {
     try {
       _recordTimer?.cancel();
@@ -154,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _recordDuration = 0;
       });
 
-      if (path == null || duration < 1) return; // bohot chhoti recording ignore
+      if (path == null || duration < 1) return;
 
       setState(() => _isUploading = true);
 
@@ -181,7 +177,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Recording cancel (na bheje)
   Future<void> _cancelRecording() async {
     _recordTimer?.cancel();
     await _audioRecorder.stop();
@@ -292,50 +287,134 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature coming soon!'),
+        backgroundColor: _teal,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _showAttachOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: _teal),
-              title: const Text('Gallery'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickAndSendImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: _teal),
-              title: const Text('Camera'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickAndSendImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.insert_drive_file_outlined,
-                  color: _teal),
-              title: const Text('Document'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickAndSendDocument();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.close, color: Color(0xFF6B7280)),
-              title: const Text('Cancel',
-                  style: TextStyle(color: Color(0xFF6B7280))),
-              onTap: () => Navigator.pop(ctx),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Small drag handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Share content',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Grid of colored options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _attachOption(
+                    ctx,
+                    icon: Icons.photo_library,
+                    label: 'Gallery',
+                    color: const Color(0xFF7C3AED), // purple
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickAndSendImage(ImageSource.gallery);
+                    },
+                  ),
+                  _attachOption(
+                    ctx,
+                    icon: Icons.camera_alt,
+                    label: 'Camera',
+                    color: const Color(0xFFEC4899), // pink
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickAndSendImage(ImageSource.camera);
+                    },
+                  ),
+                  _attachOption(
+                    ctx,
+                    icon: Icons.insert_drive_file,
+                    label: 'Document',
+                    color: const Color(0xFF2563EB), // blue
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickAndSendDocument();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // Ek attach option (colored circle + label)
+  Widget _attachOption(
+    BuildContext ctx, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -445,7 +524,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: const Color(0xFFF3F6F5),
       appBar: AppBar(
         backgroundColor: _teal,
         foregroundColor: Colors.white,
@@ -486,13 +565,26 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(child: _buildMessagesList()),
-          if (_isUploading) _buildUploadingBar(),
-          _buildInputBar(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.videocam),
+            onPressed: () => _showComingSoon('Video call'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.call),
+            onPressed: () => _showComingSoon('Voice call'),
+          ),
+          const SizedBox(width: 4),
         ],
+      ),
+      body: ChatBackground(
+        child: Column(
+          children: [
+            Expanded(child: _buildMessagesList()),
+            if (_isUploading) _buildUploadingBar(),
+            _buildInputBar(),
+          ],
+        ),
       ),
     );
   }
@@ -526,7 +618,7 @@ class _ChatScreenState extends State<ChatScreen> {
             bool typing = false;
             if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
               final data =
-              chatSnapshot.data!.data() as Map<String, dynamic>?;
+                  chatSnapshot.data!.data() as Map<String, dynamic>?;
               typing = data?['typing_${widget.otherUserId}'] ?? false;
             }
 
@@ -577,7 +669,7 @@ class _ChatScreenState extends State<ChatScreen> {
             bool otherHasSeen = false;
             if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
               final chatData =
-              chatSnapshot.data!.data() as Map<String, dynamic>?;
+                  chatSnapshot.data!.data() as Map<String, dynamic>?;
               final seenBy = List<String>.from(chatData?['seenBy'] ?? []);
               otherHasSeen = seenBy.contains(widget.otherUserId);
             }
@@ -586,7 +678,7 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: _scrollController,
               reverse: true,
               padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
@@ -623,11 +715,73 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildEmptyChat() {
-    return const Center(
-      child: Text(
-        'No messages yet.\nSay hi!',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Color(0xFF9CA3AF)),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _teal.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.forum_outlined,
+                    size: 52,
+                    color: _teal.withValues(alpha: 0.4),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No messages yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Say hello to start the conversation!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -679,9 +833,9 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 3,
-              offset: const Offset(0, 1),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -746,7 +900,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color:
-                          isMe ? Colors.white : const Color(0xFF111827),
+                              isMe ? Colors.white : const Color(0xFF111827),
                         ),
                       ),
                     ),
@@ -754,19 +908,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               )
             else if (isVoice)
-                VoiceBubble(
-                  url: message.mediaUrl,
-                  duration: message.duration,
-                  isMe: isMe,
-                )
-              else
-                Text(
-                  message.text,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: isMe ? Colors.white : const Color(0xFF111827),
-                  ),
+              VoiceBubble(
+                url: message.mediaUrl,
+                duration: message.duration,
+                isMe: isMe,
+              )
+            else
+              Text(
+                message.text,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isMe ? Colors.white : const Color(0xFF111827),
                 ),
+              ),
             Padding(
               padding: EdgeInsets.only(top: 3, right: isImage ? 6 : 0),
               child: Row(
@@ -778,8 +932,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       fontSize: 10,
                       color: isMe
                           ? (isImage
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.7))
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.7))
                           : const Color(0xFF9CA3AF),
                     ),
                   ),
@@ -803,61 +957,65 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputBar() {
-    // Recording mode — alag UI
     if (_isRecording) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              // Cancel
-              IconButton(
-                icon: const Icon(Icons.delete, color: Color(0xFFB91C1C)),
-                onPressed: _cancelRecording,
-              ),
-              // Recording indicator
-              const Icon(Icons.mic, color: Color(0xFFB91C1C), size: 20),
-              const SizedBox(width: 8),
-              Text(
-                _formatDuration(_recordDuration),
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Recording...',
-                  style: TextStyle(color: Color(0xFF6B7280)),
-                ),
-              ),
-              // Send
-              GestureDetector(
-                onTap: _stopAndSendRecording,
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: const BoxDecoration(
-                    color: _teal,
-                    shape: BoxShape.circle,
-                  ),
-                  child:
-                  const Icon(Icons.send, color: Colors.white, size: 20),
-                ),
+      return Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
               ),
             ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Color(0xFFB91C1C)),
+                  onPressed: _cancelRecording,
+                ),
+                const Icon(Icons.mic, color: Color(0xFFB91C1C), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDuration(_recordDuration),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Recording...',
+                    style: TextStyle(color: Color(0xFF6B7280)),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _stopAndSendRecording,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0F766E),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.send,
+                        color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    // Normal mode
     final hasText = _messageController.text.trim().isNotEmpty;
 
     return Container(
@@ -887,7 +1045,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   textCapitalization: TextCapitalization.sentences,
                   minLines: 1,
                   maxLines: 5,
-                  onChanged: (_) => setState(() {}), // mic/send toggle
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     hintText: 'Message',
                     hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
@@ -899,7 +1057,6 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            // Text hai to send, warna mic
             GestureDetector(
               onTap: hasText ? _sendMessage : null,
               onLongPress: hasText ? null : _startRecording,
@@ -930,7 +1087,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// ---------------- VOICE BUBBLE (play/pause) ----------------
+// ---------------- VOICE BUBBLE ----------------
 
 class VoiceBubble extends StatefulWidget {
   final String url;
@@ -987,28 +1144,56 @@ class _VoiceBubbleState extends State<VoiceBubble> {
   Widget build(BuildContext context) {
     final color = widget.isMe ? Colors.white : _teal;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: _togglePlay,
-          child: Icon(
-            _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-            color: color,
-            size: 36,
+    return SizedBox(
+      width: MediaQuery.of(context).size.width * 0.8 - 40,
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          GestureDetector(
+            onTap: _togglePlay,
+            child: Icon(
+              _isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled,
+              color: color,
+              size: 36,
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Icon(Icons.graphic_eq, color: color.withValues(alpha: 0.7), size: 20),
-        const SizedBox(width: 8),
-        Text(
-          _formatDuration(widget.duration),
-          style: TextStyle(
-            fontSize: 13,
-            color: widget.isMe ? Colors.white : const Color(0xFF111827),
+          const SizedBox(width: 10),
+          // Waveform bars
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(24, (index) {
+                final heights = [
+                  8.0, 14.0, 20.0, 12.0, 24.0, 16.0, 10.0, 18.0,
+                  22.0, 14.0, 8.0, 20.0, 26.0, 12.0, 16.0, 22.0,
+                  10.0, 18.0, 14.0, 24.0, 8.0, 16.0, 20.0, 12.0,
+                ];
+                final barColor = _isPlaying 
+                    ? color 
+                    : color.withValues(alpha: 0.6);
+                return Container(
+                  width: 3.0,
+                  height: heights[index % heights.length],
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          Text(
+            _formatDuration(widget.duration),
+            style: TextStyle(
+              fontSize: 12,
+              color: widget.isMe ? Colors.white : const Color(0xFF111827),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
