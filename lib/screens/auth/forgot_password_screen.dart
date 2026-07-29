@@ -18,6 +18,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _emailSent = false;
 
   static const Color _teal = Color(0xFF0F766E);
+  static const Color _tealDark = Color(0xFF0B5A54);
 
   @override
   void dispose() {
@@ -52,48 +53,79 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: _emailSent ? _buildSuccessView() : _buildFormView(),
+      body: Column(
+        children: [
+          // Gradient header with back + icon
+          Container(
+            height: 220,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_teal, _tealDark],
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _emailSent
+                          ? Icons.mark_email_read_outlined
+                          : Icons.lock_reset,
+                      color: _teal,
+                      size: 38,
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: _emailSent ? _buildSuccessView() : _buildFormView(),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Form view — email input
   Widget _buildFormView() {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 20),
-
-          // Icon
-          Center(
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: _teal.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.lock_reset, color: _teal, size: 32),
-            ),
-          ),
-          const SizedBox(height: 24),
-
+          const SizedBox(height: 28),
           const Text(
             'Forgot password?',
             textAlign: TextAlign.center,
@@ -108,9 +140,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const Text(
             "Enter your email and we'll send you a link to reset your password.",
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
+            style: TextStyle(
+                fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
           TextFormField(
             controller: _emailController,
@@ -147,32 +180,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           const SizedBox(height: 24),
 
-          SizedBox(
+          Container(
             height: 52,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleReset,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _teal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                disabledBackgroundColor: _teal.withValues(alpha: 0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_teal, _tealDark]),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: _teal.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: _isLoading ? null : _handleReset,
+                child: Center(
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
+                    'Send reset link',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              )
-                  : const Text(
-                'Send reset link',
-                style: TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -181,27 +225,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // Success view — email sent confirmation
   Widget _buildSuccessView() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 60),
-
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: _teal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(Icons.mark_email_read_outlined,
-                color: _teal, size: 32),
-          ),
-        ),
-        const SizedBox(height: 24),
-
+        const SizedBox(height: 40),
         const Text(
           'Check your email',
           textAlign: TextAlign.center,
@@ -221,21 +249,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 32),
 
-        SizedBox(
+        Container(
           height: 52,
-          child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _teal,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [_teal, _tealDark]),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: _teal.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
-            ),
-            child: const Text(
-              'Back to login',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => Navigator.pop(context),
+              child: const Center(
+                child: Text(
+                  'Back to login',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

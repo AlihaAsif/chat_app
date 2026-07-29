@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../core/utils/validators.dart';
-import '../../widgets/app_logo_header.dart';
+import '../../widgets/auth_header.dart';
 import '../auth_wrapper.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   static const Color _teal = Color(0xFF0F766E);
+  static const Color _tealDark = Color(0xFF0B5A54);
 
   @override
   void dispose() {
@@ -46,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (error == null) {
-      // AuthWrapper pe le jao — wo verified check karke Home ya verify screen dikhayega
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthWrapper()),
             (route) => false,
@@ -110,146 +110,157 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 56),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AuthHeader(
+              title: 'Chatt App',
+              subtitle: 'Log in to continue',
+            ),
 
-                const AppLogoHeader(subtitle: 'Log in to continue'),
-                const SizedBox(height: 32),
-
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      _buildField(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email_outlined,
-                        validator: Validators.validateEmail,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        icon: Icons.lock_outline,
-                        validator: Validators.validatePassword,
-                        obscure: _obscurePassword,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            size: 20,
-                            color: const Color(0xFF9CA3AF),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        _buildField(
+                          controller: _emailController,
+                          label: 'Email',
+                          icon: Icons.email_outlined,
+                          validator: Validators.validateEmail,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          icon: Icons.lock_outline,
+                          validator: Validators.validatePassword,
+                          obscure: _obscurePassword,
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              size: 20,
+                              color: const Color(0xFF9CA3AF),
+                            ),
+                            onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                           ),
-                          onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: _teal,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      child: const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [_teal, _tealDark],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _teal.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: _isLoading ? null : _handleLogin,
+                        child: Center(
+                          child: _isLoading
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                              : const Text(
+                            'Log in',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  const Divider(color: Color(0xFFE5E7EB), height: 1),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Don't have an account? ",
+                        style:
+                        TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignupScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Sign up',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _teal,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-
-                // Forgot password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ForgotPasswordScreen(),
-                        ),
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: _teal,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: const Text(
-                      'Forgot password?',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Login button
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _teal,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      disabledBackgroundColor: _teal.withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Text(
-                      'Log in',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                const Divider(color: Color(0xFFE5E7EB), height: 1),
-                const SizedBox(height: 20),
-
-                // Signup link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Don't have an account? ",
-                      style:
-                      TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SignupScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _teal,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
