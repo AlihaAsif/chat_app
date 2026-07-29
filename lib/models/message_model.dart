@@ -1,13 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MessageType { text, image }
+enum MessageType { text, image, document }
 
 class MessageModel {
   final String messageId;
   final String senderId;
   final String text;
   final MessageType type;
-  final String mediaUrl; // image ka URL (agar image message ho)
+  final String mediaUrl;
+  final String fileName; // document ka naam
   final DateTime timestamp;
   final bool seen;
 
@@ -17,17 +18,25 @@ class MessageModel {
     required this.text,
     this.type = MessageType.text,
     this.mediaUrl = '',
+    this.fileName = '',
     required this.timestamp,
     this.seen = false,
   });
 
   factory MessageModel.fromMap(Map<String, dynamic> map) {
+    MessageType parseType(String? t) {
+      if (t == 'image') return MessageType.image;
+      if (t == 'document') return MessageType.document;
+      return MessageType.text;
+    }
+
     return MessageModel(
       messageId: map['messageId'] ?? '',
       senderId: map['senderId'] ?? '',
       text: map['text'] ?? '',
-      type: (map['type'] == 'image') ? MessageType.image : MessageType.text,
+      type: parseType(map['type']),
       mediaUrl: map['mediaUrl'] ?? '',
+      fileName: map['fileName'] ?? '',
       timestamp:
       (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       seen: map['seen'] ?? false,
@@ -35,12 +44,19 @@ class MessageModel {
   }
 
   Map<String, dynamic> toMap() {
+    String typeStr() {
+      if (type == MessageType.image) return 'image';
+      if (type == MessageType.document) return 'document';
+      return 'text';
+    }
+
     return {
       'messageId': messageId,
       'senderId': senderId,
       'text': text,
-      'type': type == MessageType.image ? 'image' : 'text',
+      'type': typeStr(),
       'mediaUrl': mediaUrl,
+      'fileName': fileName,
       'timestamp': Timestamp.fromDate(timestamp),
       'seen': seen,
     };

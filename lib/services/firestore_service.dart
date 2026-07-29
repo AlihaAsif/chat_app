@@ -136,7 +136,7 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  // Image message bhejo (URL Supabase se aata hai)
+  // Image message
   Future<void> sendImageMessage({
     required String otherUserId,
     required String imageUrl,
@@ -163,6 +163,41 @@ class FirestoreService {
       'chatId': chatId,
       'participants': [currentUserId, otherUserId],
       'lastMessage': '📷 Photo',
+      'lastMessageTime': Timestamp.fromDate(timestamp),
+      'lastSenderId': currentUserId,
+      'seenBy': [currentUserId],
+    }, SetOptions(merge: true));
+  }
+
+  // Document message
+  Future<void> sendDocumentMessage({
+    required String otherUserId,
+    required String fileUrl,
+    required String fileName,
+  }) async {
+    final chatId = getChatId(otherUserId);
+    final timestamp = DateTime.now();
+
+    final message = MessageModel(
+      messageId: '',
+      senderId: currentUserId,
+      text: '',
+      type: MessageType.document,
+      mediaUrl: fileUrl,
+      fileName: fileName,
+      timestamp: timestamp,
+    );
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add(message.toMap());
+
+    await _firestore.collection('chats').doc(chatId).set({
+      'chatId': chatId,
+      'participants': [currentUserId, otherUserId],
+      'lastMessage': '📄 Document',
       'lastMessageTime': Timestamp.fromDate(timestamp),
       'lastSenderId': currentUserId,
       'seenBy': [currentUserId],
