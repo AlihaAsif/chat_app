@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MessageType { text, image, document }
+enum MessageType { text, image, document, voice }
 
 class MessageModel {
   final String messageId;
@@ -8,7 +8,8 @@ class MessageModel {
   final String text;
   final MessageType type;
   final String mediaUrl;
-  final String fileName; // document ka naam
+  final String fileName;
+  final int duration; // voice ki length (seconds)
   final DateTime timestamp;
   final bool seen;
 
@@ -19,6 +20,7 @@ class MessageModel {
     this.type = MessageType.text,
     this.mediaUrl = '',
     this.fileName = '',
+    this.duration = 0,
     required this.timestamp,
     this.seen = false,
   });
@@ -27,6 +29,7 @@ class MessageModel {
     MessageType parseType(String? t) {
       if (t == 'image') return MessageType.image;
       if (t == 'document') return MessageType.document;
+      if (t == 'voice') return MessageType.voice;
       return MessageType.text;
     }
 
@@ -37,6 +40,7 @@ class MessageModel {
       type: parseType(map['type']),
       mediaUrl: map['mediaUrl'] ?? '',
       fileName: map['fileName'] ?? '',
+      duration: map['duration'] ?? 0,
       timestamp:
       (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       seen: map['seen'] ?? false,
@@ -47,6 +51,7 @@ class MessageModel {
     String typeStr() {
       if (type == MessageType.image) return 'image';
       if (type == MessageType.document) return 'document';
+      if (type == MessageType.voice) return 'voice';
       return 'text';
     }
 
@@ -57,6 +62,7 @@ class MessageModel {
       'type': typeStr(),
       'mediaUrl': mediaUrl,
       'fileName': fileName,
+      'duration': duration,
       'timestamp': Timestamp.fromDate(timestamp),
       'seen': seen,
     };

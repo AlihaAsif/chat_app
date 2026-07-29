@@ -204,6 +204,41 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  // Voice message bhejo
+  Future<void> sendVoiceMessage({
+    required String otherUserId,
+    required String voiceUrl,
+    required int duration,
+  }) async {
+    final chatId = getChatId(otherUserId);
+    final timestamp = DateTime.now();
+
+    final message = MessageModel(
+      messageId: '',
+      senderId: currentUserId,
+      text: '',
+      type: MessageType.voice,
+      mediaUrl: voiceUrl,
+      duration: duration,
+      timestamp: timestamp,
+    );
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add(message.toMap());
+
+    await _firestore.collection('chats').doc(chatId).set({
+      'chatId': chatId,
+      'participants': [currentUserId, otherUserId],
+      'lastMessage': '🎤 Voice message',
+      'lastMessageTime': Timestamp.fromDate(timestamp),
+      'lastSenderId': currentUserId,
+      'seenBy': [currentUserId],
+    }, SetOptions(merge: true));
+  }
+
   Stream<List<MessageModel>> getMessages(String otherUserId) {
     final chatId = getChatId(otherUserId);
     return _firestore

@@ -6,6 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart' as picker;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../models/message_model.dart';
@@ -32,10 +35,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   final _imagePicker = ImagePicker();
+  final _audioRecorder = AudioRecorder();
 
   Timer? _typingTimer;
+  Timer? _recordTimer;
   bool _isTyping = false;
   bool _isUploading = false;
+  bool _isRecording = false;
+  int _recordDuration = 0;
   String _displayName = '';
 
   static const Color _teal = Color(0xFF0F766E);
@@ -58,6 +65,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _typingTimer?.cancel();
+    _recordTimer?.cancel();
+    _audioRecorder.dispose();
     _firestoreService.setTyping(widget.otherUserId, false);
     _messageController.dispose();
     _scrollController.dispose();
@@ -91,7 +100,98 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     _scrollToBottom();
+    setState(() {}); // mic/send button toggle refresh
   }
+
+  // ---------------- VOICE RECORDING ----------------
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path =
+            '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+        await _audioRecorder.start(
+          const RecordConfig(),
+          path: path,
+        );
+
+        setState(() {
+          _isRecording = true;
+          _recordDuration = 0;
+        });
+
+        // Duration counter
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() => _recordDuration++);
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Microphone permission denied'),
+              backgroundColor: Color(0xFFB91C1C),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _uploadError(e);
+    }
+  }
+
+  // Recording rok ke bhejo
+  Future<void> _stopAndSendRecording() async {
+    try {
+      _recordTimer?.cancel();
+      final path = await _audioRecorder.stop();
+
+      final duration = _recordDuration;
+      setState(() {
+        _isRecording = false;
+        _recordDuration = 0;
+      });
+
+      if (path == null || duration < 1) return; // bohot chhoti recording ignore
+
+      setState(() => _isUploading = true);
+
+      final url = await _storageService.uploadFile(
+        file: File(path),
+        folder: 'voice',
+      );
+
+      if (url == null) {
+        _uploadFailed();
+        return;
+      }
+
+      await _firestoreService.sendVoiceMessage(
+        otherUserId: widget.otherUserId,
+        voiceUrl: url,
+        duration: duration,
+      );
+
+      if (mounted) setState(() => _isUploading = false);
+      _scrollToBottom();
+    } catch (e) {
+      _uploadError(e);
+    }
+  }
+
+  // Recording cancel (na bheje)
+  Future<void> _cancelRecording() async {
+    _recordTimer?.cancel();
+    await _audioRecorder.stop();
+    setState(() {
+      _isRecording = false;
+      _recordDuration = 0;
+    });
+  }
+
+  // ---------------- IMAGE / DOCUMENT ----------------
 
   Future<void> _pickAndSendImage(ImageSource source) async {
     try {
@@ -178,7 +278,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _uploadError(Object e) {
     if (mounted) {
-      setState(() => _isUploading = false);
+      setState(() {
+        _isUploading = false;
+        _isRecording = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -286,7 +389,6 @@ class _ChatScreenState extends State<ChatScreen> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
-        // Agar external app se na khule, browser mein try karo
         await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
@@ -555,6 +657,7 @@ class _ChatScreenState extends State<ChatScreen> {
       MessageModel message, bool isMe, bool otherHasSeen) {
     final isImage = message.type == MessageType.image;
     final isDocument = message.type == MessageType.document;
+    final isVoice = message.type == MessageType.voice;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -650,14 +753,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               )
-            else
-              Text(
-                message.text,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: isMe ? Colors.white : const Color(0xFF111827),
+            else if (isVoice)
+                VoiceBubble(
+                  url: message.mediaUrl,
+                  duration: message.duration,
+                  isMe: isMe,
+                )
+              else
+                Text(
+                  message.text,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isMe ? Colors.white : const Color(0xFF111827),
+                  ),
                 ),
-              ),
             Padding(
               padding: EdgeInsets.only(top: 3, right: isImage ? 6 : 0),
               child: Row(
@@ -694,6 +803,63 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputBar() {
+    // Recording mode — alag UI
+    if (_isRecording) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              // Cancel
+              IconButton(
+                icon: const Icon(Icons.delete, color: Color(0xFFB91C1C)),
+                onPressed: _cancelRecording,
+              ),
+              // Recording indicator
+              const Icon(Icons.mic, color: Color(0xFFB91C1C), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                _formatDuration(_recordDuration),
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Recording...',
+                  style: TextStyle(color: Color(0xFF6B7280)),
+                ),
+              ),
+              // Send
+              GestureDetector(
+                onTap: _stopAndSendRecording,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: const BoxDecoration(
+                    color: _teal,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                  const Icon(Icons.send, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Normal mode
+    final hasText = _messageController.text.trim().isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -721,6 +887,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   textCapitalization: TextCapitalization.sentences,
                   minLines: 1,
                   maxLines: 5,
+                  onChanged: (_) => setState(() {}), // mic/send toggle
                   decoration: const InputDecoration(
                     hintText: 'Message',
                     hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
@@ -732,8 +899,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
+            // Text hai to send, warna mic
             GestureDetector(
-              onTap: _sendMessage,
+              onTap: hasText ? _sendMessage : null,
+              onLongPress: hasText ? null : _startRecording,
               child: Container(
                 width: 46,
                 height: 46,
@@ -741,12 +910,105 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: _teal,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.send, color: Colors.white, size: 20),
+                child: Icon(
+                  hasText ? Icons.send : Icons.mic,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// ---------------- VOICE BUBBLE (play/pause) ----------------
+
+class VoiceBubble extends StatefulWidget {
+  final String url;
+  final int duration;
+  final bool isMe;
+
+  const VoiceBubble({
+    super.key,
+    required this.url,
+    required this.duration,
+    required this.isMe,
+  });
+
+  @override
+  State<VoiceBubble> createState() => _VoiceBubbleState();
+}
+
+class _VoiceBubbleState extends State<VoiceBubble> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+  static const Color _teal = Color(0xFF0F766E);
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _isPlaying = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlay() async {
+    if (_isPlaying) {
+      await _player.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      await _player.play(UrlSource(widget.url));
+      setState(() => _isPlaying = true);
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.isMe ? Colors.white : _teal;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: _togglePlay,
+          child: Icon(
+            _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+            color: color,
+            size: 36,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Icon(Icons.graphic_eq, color: color.withValues(alpha: 0.7), size: 20),
+        const SizedBox(width: 8),
+        Text(
+          _formatDuration(widget.duration),
+          style: TextStyle(
+            fontSize: 13,
+            color: widget.isMe ? Colors.white : const Color(0xFF111827),
+          ),
+        ),
+      ],
     );
   }
 }
