@@ -5,6 +5,7 @@ import '../contacts/contacts_screen.dart';
 import '../chat/chat_screen.dart';
 import 'widgets/chat_tile.dart';
 import '../../models/user_model.dart';
+import '../../services/llama_model_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +25,21 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadNicknames();
+
+    // TEMPORARY TEST — LLaMA model download check. Step 3 ke baad hata dena.
+    Future.microtask(() async {
+      final manager = LlamaModelManager();
+      final alreadyThere = await manager.isModelDownloaded();
+      debugPrint('Model already downloaded? $alreadyThere');
+
+      if (!alreadyThere) {
+        await manager.downloadModel(
+          onProgress: (p) =>
+              debugPrint('Progress: ${(p * 100).toStringAsFixed(1)}%'),
+        );
+        debugPrint('Download complete!');
+      }
+    });
   }
 
   Future<void> _loadNicknames() async {
