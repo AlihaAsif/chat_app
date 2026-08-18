@@ -672,6 +672,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   chatSnapshot.data!.data() as Map<String, dynamic>?;
               final seenBy = List<String>.from(chatData?['seenBy'] ?? []);
               otherHasSeen = seenBy.contains(widget.otherUserId);
+
+              // Auto-mark chat as seen if a new message arrives while on this screen
+              final currentUserId = _firestoreService.currentUserId;
+              final lastSenderId = chatData?['lastSenderId'] ?? '';
+              if (lastSenderId != currentUserId && !seenBy.contains(currentUserId)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _firestoreService.markChatAsSeen(widget.otherUserId);
+                });
+              }
             }
 
             return ListView.builder(
