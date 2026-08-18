@@ -849,10 +849,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
                     imageUrl: message.mediaUrl,
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    height: MediaQuery.of(context).size.width * 0.45,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      width: 200,
-                      height: 200,
+                      width: MediaQuery.of(context).size.width * 0.6,
+                      height: MediaQuery.of(context).size.width * 0.45,
                       color: Colors.grey.withValues(alpha: 0.2),
                       child: const Center(
                         child: CircularProgressIndicator(
@@ -860,8 +862,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      width: 200,
-                      height: 200,
+                      width: MediaQuery.of(context).size.width * 0.6,
+                      height: MediaQuery.of(context).size.width * 0.45,
                       color: Colors.grey.withValues(alpha: 0.2),
                       child: const Icon(Icons.broken_image,
                           color: Color(0xFF9CA3AF)),

@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
 import '../contacts/contacts_screen.dart';
 import '../chat/chat_screen.dart';
+import '../ai_chat/ai_chat_screen.dart';
 import 'widgets/chat_tile.dart';
 import '../../models/user_model.dart';
-import '../../services/llama_model_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,21 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadNicknames();
-
-    // TEMPORARY TEST — LLaMA model download check. Step 3 ke baad hata dena.
-    Future.microtask(() async {
-      final manager = LlamaModelManager();
-      final alreadyThere = await manager.isModelDownloaded();
-      debugPrint('Model already downloaded? $alreadyThere');
-
-      if (!alreadyThere) {
-        await manager.downloadModel(
-          onProgress: (p) =>
-              debugPrint('Progress: ${(p * 100).toStringAsFixed(1)}%'),
-        );
-        debugPrint('Download complete!');
-      }
-    });
   }
 
   Future<void> _loadNicknames() async {
@@ -105,6 +90,18 @@ class _HomeScreenState extends State<HomeScreen> {
           'Chatt App',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            tooltip: 'AI Assistant',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AiChatScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -206,7 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         final user = userSnapshot.data;
                         final realName = user?.name ?? 'User';
                         final isOnline = user?.isOnline ?? false;
-                        // Nickname ho to wo dikhao
                         final name = _nicknames[otherUserId]?.isNotEmpty == true
                             ? _nicknames[otherUserId]!
                             : realName;
@@ -228,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           confirmDismiss: (_) async {
                             _confirmDeleteChat(otherUserId, name);
-                            return false; // dialog handle karega
+                            return false;
                           },
                           child: ChatTile(
                             name: name,
@@ -246,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                               );
-                              _loadNicknames(); // wapas aane pe refresh
+                              _loadNicknames();
                             },
                           ),
                         );
