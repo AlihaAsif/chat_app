@@ -204,7 +204,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0.0,
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
         );
@@ -249,10 +249,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
                     ? _buildEmptyState()
                     : ListView.builder(
                         controller: _scrollController,
+                        reverse: true,
                         padding: const EdgeInsets.all(12),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) =>
-                            _buildBubble(_messages[index]),
+                            _buildBubble(_messages[_messages.length - 1 - index]),
                       ),
           ),
           if (_modelReady) _buildInputBar(),
